@@ -43,7 +43,8 @@ notice_create_reqparser.add_argument('content', type=str, required=True, locatio
 
 def prob_parser(data):
     new_data = dict()
-    data = eval(data)
+    if not isinstance(data, dict):
+        data = eval(data)
 
     required = ['type', 'order']
     for require in required:

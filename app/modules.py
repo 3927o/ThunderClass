@@ -79,16 +79,16 @@ class User(db.Model):
             "gender": self.gender,
             "school": self.school,
         }
-        data_detail = {
-            "name": self.name,
-            "school_id": self.student_id,
-            "telephone": self.telephone,
-            "grade": self.grade,
-            "class": self.class_,
-            "courses": [course.to_json(detail=False) for course in self.courses]
-        }
 
         if detail:
+            data_detail = {
+                "name": self.name,
+                "school_id": self.student_id,
+                "telephone": self.telephone,
+                "grade": self.grade,
+                "class": self.class_,
+                "courses": [course.to_json(detail=False) for course in self.courses]
+            }
             data.update(data_detail)
 
         return data
@@ -154,16 +154,18 @@ class Course(db.Model):
             "avatar": Media.load_media_from_uuid(self.avatar, return_model=True).url if self.avatar is not None else None,
             "introduce": self.introduce,
             "public": self.public,
+            "create_status": 1 if g.current_user.is_teacher(self) else 0,
+            "join_status": 1 if self in g.current_user.courses else 0,
             "stat_at": format_time(self.start_at),
             "end_at": format_time(self.end_at),
             "time_excess": not self.start_at <= time() <= self.end_at,
             "teacher_name": self.teacher.name if self.teacher.name is not None else self.teacher.nickname
         }
-        data_detail = {
-            "teacher": self.teacher.to_json(detail=False)
-            # "students": [student.to_json(detail=False) for student in self.students]
-        }
         if detail:
+            data_detail = {
+                "teacher": self.teacher.to_json(detail=False)
+                # "students": [student.to_json(detail=False) for student in self.students]
+            }
             data.update(data_detail)
         return data
 
@@ -340,7 +342,7 @@ class Task(db.Model):
         answers = self.answers
         finished = [answer.student for answer in answers]
         unfinished = set(self.students).difference(set(finished))
-        finish_rate = 1.0 * len(finished) / len(self.students)
+        finish_rate = 1.0 * len(finished) / len(self.students) if len(self.students) is not 0 else 0
         pass_line = self.max_score * 0.6
 
         count_pass = 0
@@ -360,8 +362,11 @@ class Task(db.Model):
             section_count[int(answer.score/10)*10] += 1
         data = {
             "finish_rate": finish_rate,
-            "pass_rate": 1.0 * len(finished) / count_pass if count_pass is not 0 else 0,
-            "average": 1.0 * score_sum / len(finished) if len(finished) is not 0 else 0
+            "pass_rate": 1.0 * count_pass / len(finished) if len(finished) is not 0 else 0,
+            "average": 1.0 * score_sum / len(finished) if len(finished) is not 0 else 0,
+            "finish_cnt": len(finished),
+            "pass_cnt": count_pass,
+            "total_cnt": len(self.students)
         }
         if detail:
             data_detail = {
@@ -431,7 +436,8 @@ class Problem(db.Model):
             "content": self.content if self.type not in current_app.config['SELECT_TYPE'] else pickle.loads(self.content),
             "medias": Media.load_medias_from_uuid_list(pickle.loads(self.media)) if self.media is not None else None,
             "max_score": self.max_score,
-            "create_at": format_time(self.create_at)
+            "create_at": format_time(self.create_at),
+            "picture_exist": 1 if self.media is not None else 0
         }
         if return_answer:
             data_answer = {
@@ -851,9 +857,17 @@ class Notice(db.Model):
         self.title = title
 
     def to_json(self, detail=False):
+
+        read = 0
+        key = "read:{}".format(self.id)
+        if r.sismember(key, g.current_user.id):
+            read = 1
+
         data = {
+            "id": self.id,
             "self": request.host_url[:-1] + url_for("course_bp.notice", notice_id=self.id, cid=self.course.id),
-            "title": self.title
+            "title": self.title,
+            "read": read
         }
         if detail:
             data_detail = {

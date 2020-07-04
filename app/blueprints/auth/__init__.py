@@ -9,7 +9,7 @@ from app.errors import api_abort
 from app.modules import User, Discussion, Course, Task, Problem, TaskAnswer, Chapter, Comment, Notice, Media
 
 from .utils import generate_token, load_user
-from .resources import CheckNameExitAPI, CheckTelExitAPI, VerifyCodeAPI, LoginAuthAPI
+from .resources import CheckNameExitAPI, CheckTelExitAPI, VerifyCodeAPI, LoginAuthAPI, TokenAuthAPI
 
 
 access_token_expires = 3600*24*7
@@ -27,6 +27,7 @@ def create_auth_bp(name='auth_bp'):
     api_auth.add_resource(CheckNameExitAPI, '/check/nickname')
     api_auth.add_resource(VerifyCodeAPI, '/sms')
     api_auth.add_resource(LoginAuthAPI, '/login')
+    api_auth.add_resource(TokenAuthAPI, '/token')
 
     return auth_bp
 

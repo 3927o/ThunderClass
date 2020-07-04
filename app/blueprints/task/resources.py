@@ -53,10 +53,10 @@ class TaskAPI(Resource):
 
 
 class AnswerSubmitAPI(Resource):
-    # url: /task/submit/?id=<string:tid>
+    # url: /task/<string:tid>/submit
     method_decorators = [get_course_allowed, auth_required, resource_found_required('task')]
 
-    def post(self):
+    def post(self, tid):
         user = g.current_user
         task = g.current_task
         if user.is_teacher(task.course):
@@ -65,6 +65,7 @@ class AnswerSubmitAPI(Resource):
         if not task.time_begin <= time_now <= task.time_end:
             return api_abort(403, "not in the time")
 
+        # delete existed answer
         exist_task_answer = set(task.answers).intersection(set(user.answers))
         if exist_task_answer:
             exist_task_answer = exist_task_answer.pop()
@@ -77,7 +78,8 @@ class AnswerSubmitAPI(Resource):
 
         new_task_answer = TaskAnswer()
         answers = answer_submit_reqparser.parse_args()['answers']
-        answers = eval(answers)
+        if not isinstance(answers, list):
+            answers = eval(answers)
         problems = dict()
         prob_order_set = set()
         for prob in task.problems:
@@ -85,8 +87,12 @@ class AnswerSubmitAPI(Resource):
             prob_order_set.add(prob.order)
 
         answer_order_set = set()
-        for answer in answers.values():
+        for answer in answers:
+            if not isinstance(answer, dict):
+                answer = eval(answer)
             content = answer.get('content', None)
+            if content == 'undefined':
+                content = None
             order = answer.get("order", None)
             if order is None:
                 return api_abort(400, "order is needed")
@@ -252,6 +258,38 @@ class ProbStatisticAPI(Resource):
         detail = request.args.get("detail", False)
         data = problem.statistic(detail)
         return make_resp(data)
+
+
+class TaskStuStatusAPI(Resource):
+    # url:/task/<string:tid>/statistic/stu_status
+    method_decorators = [edit_task_allowed, auth_required, resource_found_required("task")]
+
+    def get(self, tid):
+        task = g.current_task
+        students = task.students
+        key = "task_finished:" + str(task.id)
+        stu_list = []
+        for student in students:
+            score = 0
+            task_answer = set(student.answers).intersection(set(g.current_task.answers))
+            if task_answer:
+                score = task_answer.pop().score
+
+            if not r.sismember(key, student.id):
+                finished = False
+            else:
+                finished = True
+
+            data = {
+                "name": student.name,
+                "student_id": student.student_id,
+                "finished": finished,
+                "score": score
+            }
+
+            stu_list.append(data)
+
+        return make_resp(stu_list)
 
 
 def set_exam_expires(user, task):

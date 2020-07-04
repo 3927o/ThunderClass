@@ -50,7 +50,7 @@ class UserAvatarAPI(Resource):
 
 
 class CourseAvatarAPI(Resource):
-    # url: avatars/course/<int:tid>
+    # url: avatars/course/<int:cid>
     method_decorators = {"get": [resource_found_required('course')],
                          "post": [auth_required, resource_found_required("course")]}
 

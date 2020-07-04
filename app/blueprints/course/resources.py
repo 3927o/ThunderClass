@@ -28,7 +28,7 @@ def teacher_required(f):
 
 class CourseAPI(Resource):
     # url: /<int:id>
-    method_decorators = {"get": [resource_found_required('course')],
+    method_decorators = {"get": [resource_found_required('course'), auth_required],
                          "put": [teacher_required, auth_required, resource_found_required('course')],
                          "delete": [teacher_required, auth_required, resource_found_required('course')]}
 
@@ -52,6 +52,7 @@ class CourseAPI(Resource):
 
 class CourseListAPI(Resource):
     # url: /course_list?teacher_id=<int:uid>
+    method_decorators = [auth_required]
 
     def get(self):
         courses = Course.query.filter_by(public=True)
@@ -62,7 +63,6 @@ class CourseListAPI(Resource):
         data = Course.list_to_json(courses)
         return make_resp(data)
 
-    @auth_required
     def post(self):
         data = course_create_reqparser.parse_args()
         new_course = Course(data['name'], data['public'], g.current_user.id,
@@ -185,7 +185,7 @@ class ImportStuAPI(Resource):
                 r.set(key, pickle.dumps(item))
             else:
                 user.courses.append(course)
-                user.name = data['name']
+                user.name = item['name']
                 db.session.commit()
         return make_resp(course.to_json(detail=True))
 
@@ -370,11 +370,20 @@ class NoticeAPI(Resource):
     # url: /course/<int:cid>/notices/<string:notice_id>
     method_decorators = {"get": [get_course_allowed, auth_required, resource_found_required("notice"),
                                  resource_found_required("course")],
+                         "post": [get_course_allowed, auth_required, resource_found_required("notice"),
+                                 resource_found_required("course")],
                          "delete": [teacher_required, auth_required, resource_found_required("course"),
                                     resource_found_required("notice")]}
 
     def get(self, cid, notice_id):
         return make_resp(g.current_notice.to_json(detail=True))
+
+    def post(self, cid, notice_id):
+        key_notice_read = "read:{}".format(notice_id)
+        key_user_cnt = "read:{}:{}".format(cid, g.current_user.id)
+        r.sadd(key_notice_read, g.current_user.id)
+        r.incr(key_user_cnt)
+        return "OK"
 
     def delete(self, cid, notice_id):
         db.session.delete(g.current_notice)
@@ -389,7 +398,8 @@ class NoticeListAPI(Resource):
 
     def get(self, cid):
         notices = g.current_course.notices
-        return make_resp(Notice.list_to_json(notices))
+        data = Notice.list_to_json(notices)
+        return make_resp(data)
 
     def post(self, cid):
         data = notice_create_reqparser.parse_args()
@@ -515,7 +525,7 @@ class CourseRecommendAPI(Resource):
 class DiscussionRecommendAPI(Resource):
     # url: /course/discussions/recommend?count_items=<int>
     def get(self):
-        count = request.args.get("count_items", 5)
+        count = int(request.args.get("count_items", 5))
         discussions = Discussion.query.all()[-1*count:]
         data = Discussion.list_to_json(discussions)
         return make_resp(data)

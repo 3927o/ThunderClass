@@ -1,5 +1,5 @@
 import redis
-from flask import request, current_app
+from flask import request, current_app, g
 from flask_restful import Resource
 
 from app.errors import api_abort
@@ -24,6 +24,7 @@ class LoginAuthAPI(Resource):
 
         data = reqparser[int(method)].parse_args()
         user, message = auth_user_funcs[int(method)](data)
+        g.current_user = user
 
         if message is not 'succeed' or user is None:
             return api_abort(401, message)
@@ -81,6 +82,25 @@ class CheckTelExitAPI(Resource):
         else:
             exit_status = 1
         return {"status": int(exit_status)}
+
+
+class TokenAuthAPI(Resource):
+    # url: /auth/token
+    def get(self):
+        token = request.headers.get('Authorization', None)
+        if token is None:
+            return api_abort(403, 'token missing')
+        try:
+            access_token = token.split(';')[0]
+            refresh_token = token.split(';')[1]
+        except IndexError:
+            access_token = token.split(';')[0]
+            refresh_token = ""
+
+        if r.sismember("token:access", access_token):
+            return make_resp("", message="OK")
+        else:
+            return make_resp("", message="Bad Token")
 
 
 def auth_user_by_pwd(data):

@@ -2,7 +2,8 @@ from flask import Blueprint
 from flask_restful import Api
 from flask_cors import CORS
 
-from .resources import UserAPI, CurrentUserAPI, StuCertificateAPI, TaskListAPI, CourseListAPI, TeacherCoursesAPI
+from .resources import UserAPI, CurrentUserAPI, StuCertificateAPI, TaskListAPI, CourseListAPI, \
+    TeacherCoursesAPI, TeacherTaskAPI
 
 
 def create_user_bp(name='user_bp'):
@@ -16,5 +17,6 @@ def create_user_bp(name='user_bp'):
     api_user.add_resource(TaskListAPI, '/current/tasks', endpoint='tasks')
     api_user.add_resource(CourseListAPI, '/current/courses', endpoint='courses')
     api_user.add_resource(TeacherCoursesAPI, '/teacher/current/courses')
+    api_user.add_resource(TeacherTaskAPI, '/teacher/tasks')
 
     return user_bp

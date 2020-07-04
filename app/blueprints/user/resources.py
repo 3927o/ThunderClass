@@ -141,6 +141,22 @@ class TeacherCoursesAPI(Resource):
         return make_resp(Course.list_to_json(courses))
 
 
+class TeacherTaskAPI(Resource):
+    # url: /user/teacher/tasks
+    method_decorators = [auth_required]
+
+    def get(self):
+        courses = Course.query.filter_by(teacher_id=g.current_user.id).all()
+        task_list = []
+        for course in courses:
+            tasks = course.tasks
+            for task in tasks:
+                task_list.append(task)
+
+        data = Task.list_to_json(task_list, g.current_user)
+        return make_resp(data)
+
+
 def validate_and_change_info(info_name, new_info, code):
     if validate_verify_code(g.current_user.telephone, secure_info_map[info_name], code):
         if info_name is "password":

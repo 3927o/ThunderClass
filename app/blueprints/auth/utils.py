@@ -3,7 +3,7 @@ import redis
 import pickle
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
 
-from flask import current_app
+from flask import current_app, g
 
 from app.modules import User
 from app.extensions import pool
@@ -81,6 +81,7 @@ def generate_token(user, token_type, expires=3600 * 24 * 7, json_user=False):
     if json_user:
         data = user
     else:
+        g.current_user = user
         data = user.to_json(detail=True)
     token = s.dumps(data).decode('ascii')
 
